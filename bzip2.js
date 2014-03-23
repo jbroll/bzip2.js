@@ -53,9 +53,9 @@ bzip2.array = function(bytes){
 
 bzip2.simple = function(bits){
   var size = bzip2.header(bits);
-  var all = '', chunk = '';
+  var all = [], chunk = []
   do{
-    all += chunk;
+    all = all.concat(all, chunk);
     chunk = bzip2.decompress(bits, size);
   }while(chunk != -1);
   return all;
@@ -234,7 +234,12 @@ bzip2.decompress = function(bits, size, len){
     run = -1;
   }
   count = count;
-  var output = '';
+
+  var maxindex = 1000000;
+  var output = [];
+  var bindex = maxindex + 1;
+  var outbuf;
+
   var copies, previous, outbyte;
   if(!len) len = Infinity;
   while(count){
@@ -252,10 +257,27 @@ bzip2.decompress = function(bits, size, len){
       outbyte = current;
     }
     while(copies--){
-      output += (String.fromCharCode(outbyte));
-      if(!--len) return output;
+      if ( bindex >= maxindex ) {
+	  if ( outbuf !== undefined ) {
+	      output.push(outbuf);
+	  }
+	  outbuf = new Uint8Array(maxindex);
+	  bindex = 0;
+      }
+
+      outbuf[bindex++] = outbyte;
+
+      if(!--len) {
+	  outbuf = outbuf.subarray(0, bindex);
+	  output.push(outbuf);
+	  return output;
+      }
     }
     if(current != previous) run = 0;
+
   }
+
+  outbuf = outbuf.subarray(0, bindex);
+  output.push(outbuf);
   return output;
 }
